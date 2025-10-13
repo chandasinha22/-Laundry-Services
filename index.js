@@ -88,88 +88,145 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// Cart functionality
+let cart = [];
+let cartCounter = 0;
+
 // Modal functions
 function showBookingModal() {
-    const modal = document.createElement('div');
-    modal.className = 'booking-modal';
-    modal.innerHTML = `
-        <div class="modal-overlay">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Book Your Service</h2>
-                    <button class="modal-close">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <form class="booking-form">
-                        <div class="form-group">
-                            <label for="service">Service Type</label>
-                            <select id="service" name="service" required>
-                                <option value="">Select a service</option>
-                                <option value="wash-fold">Wash & Fold</option>
-                                <option value="dry-cleaning">Dry Cleaning</option>
-                                <option value="express">Express Service</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="pickup-date">Preferred Pickup Date</label>
-                            <input type="date" id="pickup-date" name="pickup-date" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="pickup-time">Preferred Pickup Time</label>
-                            <select id="pickup-time" name="pickup-time" required>
-                                <option value="">Select time</option>
-                                <option value="9-12">9:00 AM - 12:00 PM</option>
-                                <option value="12-3">12:00 PM - 3:00 PM</option>
-                                <option value="3-6">3:00 PM - 6:00 PM</option>
-                                <option value="6-9">6:00 PM - 9:00 PM</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="address">Pickup Address</label>
-                            <textarea id="address" name="address" rows="3" placeholder="Enter your complete address" required></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="phone">Phone Number</label>
-                            <input type="tel" id="phone" name="phone" placeholder="(555) 123-4567" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="notes">Special Instructions</label>
-                            <textarea id="notes" name="notes" rows="2" placeholder="Any special instructions for your laundry..."></textarea>
-                        </div>
-                        <button type="submit" class="btn-primary">Confirm Booking</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    `;
+    const modal = document.getElementById('bookingModal');
+    modal.style.display = 'block';
     
-    document.body.appendChild(modal);
+    // Reset cart when modal opens
+    cart = [];
+    cartCounter = 0;
+    
+    // Pre-populate cart with some services to match the image
+    addServiceToCart('dry-cleaning', 200, 'Dry Cleaning');
+    addServiceToCart('ironing', 30, 'Ironing');
+    addServiceToCart('leather-cleaning', 999, 'Leather & Suede Cleaning');
+    
+    updateCartDisplay();
+    updateServiceButtonStates();
     
     // Close modal handlers
-    modal.querySelector('.modal-close').addEventListener('click', () => {
-        document.body.removeChild(modal);
+    const closeBtn = modal.querySelector('.modal-close');
+    const overlay = modal.querySelector('.modal-overlay');
+    
+    closeBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
     });
     
-    modal.querySelector('.modal-overlay').addEventListener('click', (e) => {
-        if (e.target === modal.querySelector('.modal-overlay')) {
-            document.body.removeChild(modal);
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            modal.style.display = 'none';
         }
     });
     
     // Form submission
-    modal.querySelector('.booking-form').addEventListener('submit', (e) => {
+    const bookingForm = document.getElementById('bookingForm');
+    bookingForm.addEventListener('submit', (e) => {
         e.preventDefault();
+        
+        if (cart.length === 0) {
+            showNotification('Please add at least one service to your cart.', 'error');
+            return;
+        }
+        
         const formData = new FormData(e.target);
         const bookingData = Object.fromEntries(formData);
         
         // Simulate booking submission
         showNotification('Booking confirmed! We will contact you shortly.', 'success');
-        document.body.removeChild(modal);
+        modal.style.display = 'none';
+        
+        // Reset form
+        bookingForm.reset();
+    });
+}
+
+// Toggle service in cart
+function toggleService(serviceId, price, serviceName) {
+    const existingItem = cart.find(item => item.id === serviceId);
+    
+    if (existingItem) {
+        // Remove from cart
+        cart = cart.filter(item => item.id !== serviceId);
+    } else {
+        // Add to cart
+        addServiceToCart(serviceId, price, serviceName);
+    }
+    
+    updateCartDisplay();
+    updateServiceButtonStates();
+}
+
+// Update cart display
+function updateCartDisplay() {
+    const cartItems = document.getElementById('cart-items');
+    const totalPrice = document.getElementById('total-price');
+    
+    // Clear existing items
+    cartItems.innerHTML = '';
+    
+    let total = 0;
+    
+    cart.forEach(item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${item.serialNumber}</td>
+            <td>${item.name}</td>
+            <td>₹${item.price.toFixed(2)}</td>
+        `;
+        cartItems.appendChild(row);
+        total += item.price;
     });
     
-    // Set minimum date to today
-    const today = new Date().toISOString().split('T')[0];
-    modal.querySelector('#pickup-date').setAttribute('min', today);
+    totalPrice.textContent = `₹${total.toFixed(2)}`;
+}
+
+// Add service to cart (helper function)
+function addServiceToCart(serviceId, price, serviceName) {
+    cartCounter++;
+    cart.push({
+        id: serviceId,
+        name: serviceName,
+        price: price,
+        serialNumber: cartCounter
+    });
+}
+
+// Update service button states
+function updateServiceButtonStates() {
+    cart.forEach(item => {
+        const button = document.querySelector(`[data-service="${item.id}"] .add-to-cart-btn`);
+        if (button) {
+            button.innerHTML = '<i class="fas fa-minus"></i> Remove Item';
+            button.classList.add('remove');
+        }
+    });
+    
+    // Reset buttons not in cart
+    const allButtons = document.querySelectorAll('.add-to-cart-btn');
+    allButtons.forEach(button => {
+        const serviceItem = button.closest('.service-item');
+        const serviceId = serviceItem.getAttribute('data-service');
+        const inCart = cart.some(item => item.id === serviceId);
+        
+        if (!inCart) {
+            button.innerHTML = '<i class="fas fa-plus"></i> Add Item';
+            button.classList.remove('remove');
+        }
+    });
+}
+
+// Reset service buttons
+function resetServiceButtons() {
+    const buttons = document.querySelectorAll('.add-to-cart-btn');
+    buttons.forEach(button => {
+        button.innerHTML = '<i class="fas fa-plus"></i> Add Item';
+        button.classList.remove('remove');
+    });
 }
 
 function showVideoModal() {
